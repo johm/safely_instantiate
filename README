@@ -1,0 +1,55 @@
+SafelyInstantiate
+=================
+
+Rails' polymorphic associations are fantastically useful.  
+
+The way this gets handled in controllers can be a bit skecthy,
+however, especially if you're using RESTful routes and nested
+resources like "/blogpost/1/comments/new"
+
+If you want to write a controller to handle attaching, say, a comment
+to an instance of any of N models in your application, most examples
+you'll find will tell you either manually code in cases in your
+comments controller to figure out what kind of model you need to find,
+i.e.:
+
+    case
+      when params[:article_id] then Article.find_by_id(params[:article_id])
+      when params[:news_id] then News.find_by_id(params[:news_id])
+    end    
+
+Or, ideally, to get fancy and DRY and look for "[.*]_id" in the params
+hash and then take whatever's in [.*], "classify" it, and then either
+do an "eval" or a "constantize" metaprogramming trick and get your
+class from the string the user supplied in the params.
+
+Perhaps it's just me being *extra paranoid*, but taking a user
+supplied input string and feeding it to the ruby interpreter, even
+just to get the name of a class, seems to me like a bad idea without
+being extra-sure that the string in question isn't severely limited to
+its possible values.
+
+So the point of this (very small) plugin is just to provide a simple
+method, classname_to_model, which will safely restrict the possible
+things your users can instantiate to class corresponding to models in
+your rails model directory. 
+
+
+Example
+=======
+
+Request says:
+	GET /blogpost/1/comments/new
+
+Comments controller code:
+	 def new
+	     parent_id_key_name = params.keys.find do |k| k.to_s =~ /.*_id/ end
+	     tainted_class_name = parent_id_key_name.gsub(/_id/,'') 			
+	     @thing_being_commented_on = classname_to_model(tainted_class_name).find(params[parent_id_key_name])
+
+And then you can be sure that @thing_being_commented_on is actually
+one of your models, and not some random class that the Ruby
+interpreter happens to know about.
+
+
+Copyright (c) 2009 John Duda, released under the MIT license
